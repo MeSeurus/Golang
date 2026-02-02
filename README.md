@@ -1,23 +1,150 @@
-**<p>Инструкция к выполнению</p>**
-<p>1. Создайте абстракции (интерфейсы).</p>
-<p>· Создайте интерфейсы RepositoryWriter и Notifier, которые будут определять общие контракты для всех типов баз данных и отправителей уведомлений.</p>
-<p>2. Адаптируйте существующие структуры под интерфейсы.</p>
-<p>· Выделите структуру EmailSender так, чтобы она реализовывала интерфейс Notifier. Для этого нужно перенести метод sendEmailNotification в нее и переименовать его в Send.</p>
-<p>3. Добавьте новую функциональность.</p>
-<p>· Создайте новую структуру SMSSender, которая также будет реализовывать интерфейс Notifier. Это продемонстрирует гибкость новой архитектуры.</p>
-<p>4. Проведите рефакторинг основного сервиса.</p>
-<p>· Создайте OrderService так, чтобы он зависел от интерфейсов RepositoryWriter и Notifier, а не от конкретных реализаций.</p>
-<p>5. Продемонстрируйте работу.</p>
-<p>· В функции main покажите, как можно использовать OrderService с разными типами отправителей (EmailSender и SMSSender), не меняя код самого сервиса.</p>
-<p>6. Загрузите решение на GitHub</p>
-<p>· Создайте новый публичный репозиторий на GitHub.</p>
-<p>· Загрузите в него получившиеся файлы с итоговым решением.</p>
-<p>Вставьте ссылку на вашу работу в поле «Ссылка на решение» и нажмите «Отправить на проверку». Перед отправкой домашнего задания вы можете написать комментарий эксперту.</p>
+```package main```
 
-**Решено**
+import (
+    "errors"
+    "fmt"
+    "reflect"
+    "regexp"
+    "strconv"
+    "strings"
+)
 
-<p>SRP: Каждый класс решает конкретную задачу.</p>
-<p>OCP: Добавляя новые виды нотификаторов или хранилищ, нам не придётся менять существующий код.</p>
-<p>LSP: Новые реализации соответствуют существующему контракту интерфейса.</p>
-<p>ISP: У каждого компонента есть минимальный, чётко определённый интерфейс.</p>
-<p>DIP: order_service.go зависит от абстрактных интерфейсов, а не от конкретных классов.</p>
+```// Функция Validate принимает интерфейс любого типа и возвращает ошибку,
+// если найдены проблемы с проверкой полей.
+func Validate(v any) error {
+    // получаем отражённую версию переданного аргумента
+    val := reflect.ValueOf(v)
+    typ := val.Type()
+
+    // Проверяем, является ли аргумент структурой
+    if typ.Kind() != reflect.Struct {
+        return errors.New("неправильный тип аргумента: ожидается структура")
+    }
+
+    // проходим по всем полям структуры
+    for i := 0; i < typ.NumField(); i++ {
+        field := typ.Field(i)
+        // Получаем тег validate
+        tagValue := field.Tag.Get("validate")
+        if tagValue == "" {
+            continue
+        }
+
+        // Значение текущего поля
+        fieldValue := val.Field(i).Interface()
+
+        // Разбираем правила, отделённые друг от друга точкой с запятой
+        rules := strings.Split(tagValue, ";")
+
+        for _, rule := range rules {
+            // Каждая проверка состоит из двух частей: ключ и значение
+            kvPair := strings.SplitN(rule, "=", 2)
+            if len(kvPair) != 2 {
+                continue
+            }
+
+            checkType := kvPair[0]
+            param := kvPair[1]
+
+            switch checkType {
+            case "min": // Минимальное значение
+                minVal, err := strconv.Atoi(param)
+                if err != nil {
+                    continue
+                }
+
+                switch fv := fieldValue.(type) {
+                case string:
+                    runes := []rune(fv)
+                    if len(runes) < minVal {
+                        return fmt.Errorf("%s: минимальная длина '%d', фактическая длина '%d'", field.Name, minVal, len(runes))
+                    }
+                case int:
+                    if fv < minVal {
+                        return fmt.Errorf("%s: минимальное значение '%d', фактическое значение '%d'", field.Name, minVal, fv)
+                    }
+                }
+
+            case "max": // Максимальное значение
+                maxVal, err := strconv.Atoi(param)
+                if err != nil {
+                    continue
+                }
+
+                switch fv := fieldValue.(type) {
+                case string:
+                    runes := []rune(fv)
+                    if len(runes) > maxVal {
+                        return fmt.Errorf("%s: максимальная длина '%d', фактическая длина '%d'", field.Name, maxVal, len(runes))
+                    }
+                case int:
+                    if fv > maxVal {
+                        return fmt.Errorf("%s: максимальное значение '%d', фактическое значение '%d'", field.Name, maxVal, fv)
+                    }
+                }
+
+            case "regexp": // Регулярное выражение
+                re := regexp.MustCompile(param)
+                fvStr, ok := fieldValue.(string)
+                if !ok || !re.MatchString(fvStr) {
+                    return fmt.Errorf("%s: некорректный формат строки", field.Name)
+                }
+            }
+        }
+    }
+
+    return nil
+}```
+
+``// Пример структуры для тестирования
+type User struct {
+    Name  string `validate:"min=3"`      // минимум 3 символа
+    Age   int    `validate:"min=18;max=65"` // возраст между 18 и 65 годами включительно
+    Email string `validate:"regexp=^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"` // правильный e-mail адрес
+}``
+
+```// Примеры тестовых случаев
+func main() {
+    user1 := User{
+        Name:  "Ив",
+        Age:   18,
+        Email: "test@example.com",
+    }
+    
+    err := Validate(user1)
+    if err != nil {
+        fmt.Printf("Ошибка валидации: %v\n", err)
+    }
+
+    user2 := User{
+        Name:  "Иван",
+        Age:   70,
+        Email: "test@example.com",
+    }
+    err = Validate(user2)
+    if err != nil {
+        fmt.Printf("Ошибка валидации: %v\n", err)
+    }
+
+    user3 := User{
+        Name:  "Иван",
+        Age:   35,
+        Email: "invalid_email",
+    }
+    err = Validate(user3)
+    if err != nil {
+        fmt.Printf("Ошибка валидации: %v\n", err)
+    }
+
+    user4 := User{
+        Name:  "Иван",
+        Age:   35,
+        Email: "test@example.com",
+    }
+    err = Validate(user4)
+    if err != nil {
+        fmt.Printf("Ошибка валидации: %v\n", err)
+    } else {
+        fmt.Println("Валидация прошла успешно.")
+    }```
+}
