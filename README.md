@@ -1,10 +1,31 @@
-Вывод программы:
+### Инструкция по запуску
 
-<p>Статистика:</p>
-<p>https://yandex.com      Success Время выполнения: 504ns</p>
-<p>https://bing.com        Success Время выполнения: 580ns</p>
-<p>https://rambler.ru      Success Время выполнения: 642ns</p>
-<p>https://yahoo.com       Success Время выполнения: 704ns</p>
-<p>https://google.com      Success Время выполнения: 790ns</p>
+1. Установить зависимости:
+```go mod download```
 
-Среднее время выполнения: 644ns
+2. Запустить сервер:
+```go run cmd/server/main.go```
+
+### Эндпоинты
+
+| Метод | Рут              | Описание                 |
+|-------|------------------|-------------------------|
+| GET   | /tasks           | Получить список задач    |
+| POST  | /tasks           | Создать новую задачу    |
+| GET   | /tasks/{id}      | Получить задачу по ID    |
+| PUT   | /tasks/{id}      | Обновить задачу         |
+| DELETE| /tasks/{id}      | Удалить задачу          |
+
+### Примеры запросов через CURL
+
+Получить список задач:
+```curl localhost:8080/tasks```
+
+Создать новую задачу:
+```curl -X POST -H 'Content-Type: application/json' -d '{"title": "Buy milk", "done": false}' localhost:8080/tasks```
+
+Обновить существующую задачу:
+```curl -X PUT -H 'Content-Type: application/json' -d '{"title": "Finish report", "done": true}' localhost:8080/tasks/1```
+
+Удалить задачу:
+```curl -X DELETE localhost:8080/tasks/1```
