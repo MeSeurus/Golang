@@ -1,31 +1,47 @@
-### Инструкция по запуску
+# Blog Platform
 
-1. Установить зависимости:
-```go mod download```
+Расширенная система управления блогом на Go.
 
-2. Запустить сервер:
-```go run cmd/server/main.go```
+## Стек
+- Go 1.21+
+- PostgreSQL
+- Docker Compose
+- JWT аутентификация
+- chi router
+- sqlx
+- bcrypt
 
-### Эндпоинты
+## Запуск
 
-| Метод | Рут              | Описание                 |
-|-------|------------------|-------------------------|
-| GET   | /tasks           | Получить список задач    |
-| POST  | /tasks           | Создать новую задачу    |
-| GET   | /tasks/{id}      | Получить задачу по ID    |
-| PUT   | /tasks/{id}      | Обновить задачу         |
-| DELETE| /tasks/{id}      | Удалить задачу          |
+1. Клонируйте репозиторий.
+2. Создайте `.env` на основе `.env.example`.
+3. Запустите базу данных: docker-compose up -d
+4. Запустите приложение: go run cmd/api/main.go или через Make: make run
 
-### Примеры запросов через CURL
+## API Эндпоинты
 
-Получить список задач:
-```curl localhost:8080/tasks```
+### Auth
+- `POST /api/register` — регистрация (email, password)
+- `POST /api/login` — вход, возвращает JWT
 
-Создать новую задачу:
-```curl -X POST -H 'Content-Type: application/json' -d '{"title": "Buy milk", "done": false}' localhost:8080/tasks```
+### Posts
+- `GET /api/posts?limit=10&offset=0` — список опубликованных постов
+- `GET /api/posts/{id}` — детальный пост
+- `POST /api/posts` — создать пост (требуется авторизация)
+- `PUT /api/posts/{id}` — обновить пост (только автор)
+- `DELETE /api/posts/{id}` — удалить пост (только автор)
 
-Обновить существующую задачу:
-```curl -X PUT -H 'Content-Type: application/json' -d '{"title": "Finish report", "done": true}' localhost:8080/tasks/1```
+### Comments
+- `POST /api/posts/{postId}/comments` — добавить комментарий (авторизация)
+- `GET /api/posts/{postId}/comments` — список комментариев поста
 
-Удалить задачу:
-```curl -X DELETE localhost:8080/tasks/1```
+### Health
+- `GET /api/health`
+
+## Тестирование
+make test
+
+## Примечания
+- Планировщик публикует посты с `publish_at <= now()`.
+- Используется bcrypt для паролей.
+- Graceful shutdown обрабатывает завершение фоновых воркеров.
